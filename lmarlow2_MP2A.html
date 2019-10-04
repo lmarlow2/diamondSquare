@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<title>Flight.html</title>
+<meta charset="utf-8">
+</head>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+	//code based on Blinn-Phong shader found on Wikipedia needs cleaned up, but it works for the moment
+	attribute vec3 aVertexPosition;
+	attribute vec3 aVertexNormal;
+	attribute vec4 hColor;
+
+	uniform mat4 uPMatrix, uMVMatrix;
+	uniform mat3 uNMatrix;
+
+	varying vec3 normalInterp;
+	varying vec3 vertPos;
+	varying vec4 vColor;
+
+	void main(){
+		gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vec4 vertPos4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+		vertPos = vec3(vertPos4);
+		normalInterp = uNMatrix * aVertexNormal;
+		vColor = hColor;
+	}
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+	//code based on Blinn-Phong shader found on Wikipedia needs cleaned up, but it works for the moment
+	precision mediump float;
+
+	varying vec3 normalInterp;
+	varying vec3 vertPos;
+	varying vec4 vColor;
+
+	//These should be uniforms eventually...
+	uniform vec3 lightPos;
+	const vec3 ambientColor = vec3(0.098, 0.098, 0.2);
+	const vec3 diffuseColor = vec3(0.5, 0.5, 0.5);
+	const vec3 specColor = vec3(1.0, 1.0, 1.0);
+	const float shininess = 16.0;
+	const vec4 fogColor = vec4(1.0, 1.0, 1.0, 1.0);
+	uniform float fogDensity;
+	
+	void main(){
+	  vec3 normal = normalize(normalInterp);
+	  vec3 lightDir = normalize(lightPos - vertPos);
+
+	  float lambertian = max(dot(lightDir,normal), 0.0);
+	  float specular = 0.0;
+
+	  if(lambertian > 0.0){
+		vec3 viewDir = normalize(-vertPos);
+		vec3 halfDir = normalize(lightDir + viewDir);
+		float specAngle = max(dot(halfDir, normal), 0.0);
+		specular = pow(specAngle, shininess);
+	  }
+	  vec3 color = ambientColor + lambertian * diffuseColor + specular * specColor;
+	  
+	  float z = vertPos[2];
+	  float fogFactor = exp2(-fogDensity * fogDensity * z *  z * 1.442695);
+	  fogFactor = clamp(fogFactor, 0.0, 1.0);
+
+	  gl_FragColor = mix(fogColor, vColor * vec4(color, 1.0), fogFactor);
+	}
+</script>
+
+<script src="gl-matrix-min.js"></script>
+<script src="webgl-utils.js"></script>
+<script src="simpleModeling.js"></script>
+<script src="terrainModeling.js"></script>
+<script src="lmarlow2_MP2A.js"></script>
+
+<body onload="startup();">
+
+<canvas id="myGLCanvas" width="900" height="600"></canvas>
+
+<form id="input_form">
+	<fieldset>
+		<legend>Rendering Parameters</legend>
+		Fog <input type="checkbox" name="fogSelect" id="fog" value="fog" checked>
+	</fieldset>
+</form>
+
+<h3>Flight Controls</h3>
+<p>The up arrow and w key decrease the pitch of the aircraft (turn more towards the ground)<br>
+The down arrow and s key increase the pitch of the aircraft (pull up)<br>
+The left arrow and a key roll to the left (roll right wing over left wing)<br>
+The right arrow and d key roll to the right (roll left wing over right wing)<br>
+the + key and = key increase the speed of the aircraft<br>
+the - key decreases the speed of the aircraft (This magical aircraft has the ability to stop in midair, but it cannot fly backwards)</p>
+
+<p>Propeller Audio Loop from JillianCallahan of freesound.org</p>
+<audio controls loop autoplay>
+  <source src="12812__jilliancallahan__generic-prop-idle.mp3" type="audio/mpeg">
+Your browser does not support the audio element.
+</audio>
+
+</body>
+</html>
